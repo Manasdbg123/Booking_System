@@ -1,0 +1,25 @@
+# Pinned to versions that ship prebuilt wheels for Python 3.12 through 3.14.
+# (The original 2024-era pins had no 3.14 wheels and forced a Rust/C source
+# build of pydantic-core and asyncpg, which fails without a full toolchain.)
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+sqlalchemy==2.0.54
+asyncpg==0.31.0
+alembic==1.20.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+email-validator==2.3.0
+python-jose[cryptography]==3.5.0
+bcrypt==5.0.0
+redis==8.1.0
+python-multipart==0.0.32
+prometheus-client==0.26.0
+structlog==26.1.0
+websockets==17.1
+httpx==0.28.1
+
+# testing
+pytest==9.1.1
+pytest-asyncio==1.4.0
+hypothesis==6.168.0
+pytest-cov==7.1.0
