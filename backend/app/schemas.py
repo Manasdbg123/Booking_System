@@ -62,6 +62,12 @@ class EventOut(BaseModel):
     description: str
     poster_url: str
     venue: VenueOut
+    from_price: Decimal | None = None
+    seats_available: int = 0
+    seats_total: int = 0
+    next_show_at: datetime | None = None
+    next_show_id: uuid.UUID | None = None
+    is_hot: bool = False
 
     class Config:
         from_attributes = True

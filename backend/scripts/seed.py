@@ -4,6 +4,7 @@ Idempotent-ish: clears existing catalog/booking data first (dev only).
 """
 
 import asyncio
+import math
 import random
 import string
 import sys
@@ -53,11 +54,72 @@ def row_label(index: int) -> str:
     return label
 
 
-def make_seats(n: int) -> list[tuple[str, int]]:
-    seats_per_row = 40
+# Hall geometry. Seats are laid out in aisle-separated blocks, curved around
+# the stage, with sections as contiguous front-to-back bands (the expensive
+# seats are the ones near the stage) rather than being sprinkled seat by seat.
+SEAT_PITCH = 14.0
+ROW_PITCH = 16.0
+AISLE_WIDTH = 22.0
+
+# Front-to-back share of rows per section, matching SECTION_TEMPLATES order.
+SECTION_ROW_SHARE = (0.15, 0.25, 0.28, 0.32)
+
+
+def hall_shape(n: int) -> tuple[int, tuple[int, int, int]]:
+    """Seats per row and the (left, centre, right) block split for a hall of n seats.
+
+    A fixed seats-per-row makes big halls absurd: 5,000 seats at 40 per row
+    is 125 rows, which renders as a tall narrow tower rather than a venue.
+    Deriving the row width from the seat count keeps every hall roughly
+    1.3–1.7x wider than deep, like a real auditorium.
+    """
+    seats_per_row = max(20, min(100, round(math.sqrt(n * 1.7))))
+    seats_per_row -= seats_per_row % 2  # keep the side blocks symmetric
+    side = max(4, seats_per_row // 4)
+    centre = seats_per_row - 2 * side
+    return seats_per_row, (side, centre, side)
+
+
+def _x_for_seat_in_row(index_in_row: int, blocks: tuple[int, int, int]) -> float:
+    """X position accounting for the aisles between seat blocks."""
+    remaining = index_in_row
+    for block_i, block_size in enumerate(blocks):
+        if remaining < block_size:
+            seats_before = sum(blocks[:block_i]) + remaining
+            return seats_before * SEAT_PITCH + block_i * AISLE_WIDTH
+        remaining -= block_size
+    # more seats in the row than the blocks allow for — put them on the end
+    return (sum(blocks) + remaining) * SEAT_PITCH + len(blocks) * AISLE_WIDTH
+
+
+def _section_index_for_row(row: int, total_rows: int) -> int:
+    """Sections are contiguous bands of rows, closest-to-stage first."""
+    boundary = 0.0
+    for section_i, share in enumerate(SECTION_ROW_SHARE):
+        boundary += share * total_rows
+        if row < boundary:
+            return section_i
+    return len(SECTION_ROW_SHARE) - 1
+
+
+def make_seats(n: int) -> list[tuple[str, int, int, float, float]]:
+    """Returns (row_label, seat_number, section_index, pos_x, pos_y) per seat."""
+    seats_per_row, blocks = hall_shape(n)
+    total_rows = (n + seats_per_row - 1) // seats_per_row
+    row_width = sum(blocks) * SEAT_PITCH + (len(blocks) - 1) * AISLE_WIDTH
+    centre_x = row_width / 2
+    # Keep the arc proportional to the hall's width so wide halls don't get
+    # an exaggerated bow at the edges.
+    curve = 32.0 / max(centre_x * centre_x, 1.0)
+
     seats = []
     for i in range(n):
-        seats.append((row_label(i // seats_per_row), i % seats_per_row + 1))
+        row = i // seats_per_row
+        index_in_row = i % seats_per_row
+        x = _x_for_seat_in_row(index_in_row, blocks)
+        offset_from_centre = x - centre_x
+        y = row * ROW_PITCH + curve * offset_from_centre * offset_from_centre
+        seats.append((row_label(row), index_in_row + 1, _section_index_for_row(row, total_rows), x, y))
     return seats
 
 
@@ -100,11 +162,11 @@ async def seed() -> None:
             await session.flush()
 
             seats_by_section: dict = {sec.id: [] for sec in sections}
-            for idx, (row, seat_number) in enumerate(make_seats(seat_count)):
-                section = sections[idx % len(sections)]
+            for row, seat_number, section_index, pos_x, pos_y in make_seats(seat_count):
+                section = sections[section_index]
                 seat = Seat(
                     hall_id=hall.id, section_id=section.id, row_label=row, seat_number=seat_number,
-                    pos_x=seat_number * 12, pos_y=(idx // 40) * 14,
+                    pos_x=pos_x, pos_y=pos_y,
                 )
                 session.add(seat)
                 seats_by_section[section.id].append(seat)
@@ -122,7 +184,8 @@ async def seed() -> None:
                 for seat in seats_by_section[section.id]:
                     session.add(ShowSeat(show_id=show.id, seat_id=seat.id, price=section.base_price))
 
-            print(f"  - {title}: {seat_count} seats across {len(sections)} sections")
+            spr, _ = hall_shape(seat_count)
+            print(f"  - {title}: {seat_count} seats, {spr}/row x {(seat_count + spr - 1)//spr} rows, {len(sections)} sections")
 
         await session.commit()
         print("Seed complete.")

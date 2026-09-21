@@ -33,3 +33,9 @@ Thumbs.db
 
 # Portable dev binaries (Redis for Windows) — see docs/local-setup.md
 .tools/
+
+# Playwright
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/blob-report/
+/frontend/.playwright/

@@ -1,15 +1,60 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import Event, Seat, Section, Show, ShowSeat
+from app.models import Event, Seat, SeatStatus, Section, Show, ShowSeat
 
 
-async def list_events(session: AsyncSession) -> list[Event]:
-    result = await session.execute(select(Event).options(selectinload(Event.venue)))
-    return list(result.scalars().all())
+async def list_events(session: AsyncSession) -> list[dict]:
+    """Events plus the bits the browse page needs to be useful: cheapest
+    ticket, how many seats are left, and the next showtime.
+
+    The aggregates are one grouped query for the whole list rather than a
+    per-event lookup, so adding fields here doesn't turn the browse page
+    into an N+1.
+    """
+    events = (
+        await session.execute(select(Event).options(selectinload(Event.venue), selectinload(Event.shows)))
+    ).scalars().all()
+
+    aggregates = {
+        row.event_id: row
+        for row in (
+            await session.execute(
+                select(
+                    Show.event_id.label("event_id"),
+                    func.min(ShowSeat.price).label("from_price"),
+                    func.count(ShowSeat.id).filter(ShowSeat.status == SeatStatus.FREE).label("seats_available"),
+                    func.count(ShowSeat.id).label("seats_total"),
+                )
+                .join(ShowSeat, ShowSeat.show_id == Show.id)
+                .group_by(Show.event_id)
+            )
+        ).all()
+    }
+
+    out = []
+    for event in events:
+        agg = aggregates.get(event.id)
+        upcoming = sorted(event.shows, key=lambda s: s.starts_at)
+        out.append(
+            {
+                "id": event.id,
+                "title": event.title,
+                "description": event.description,
+                "poster_url": event.poster_url,
+                "venue": event.venue,
+                "from_price": agg.from_price if agg else None,
+                "seats_available": agg.seats_available if agg else 0,
+                "seats_total": agg.seats_total if agg else 0,
+                "next_show_at": upcoming[0].starts_at if upcoming else None,
+                "next_show_id": upcoming[0].id if upcoming else None,
+                "is_hot": any(s.is_hot for s in event.shows),
+            }
+        )
+    return out
 
 
 async def get_event(session: AsyncSession, event_id: uuid.UUID) -> Event | None:

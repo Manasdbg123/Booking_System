@@ -63,10 +63,11 @@ Default admin login (bootstrapped on first API startup): see
 - Frontend: `npm run build`, `tsc --noEmit` and `next lint` all clean; every route returns HTTP 200 from the dev server.
 - Hottest-query `EXPLAIN ANALYZE` captured and pasted into [`docs/design.md`](docs/design.md) — index scan confirmed, 0.53 ms for 5,000 seats.
 
+- Frontend verified visually and interactively via Playwright: **12/12 e2e tests pass** across desktop and mobile viewports (`cd frontend && npm run test:e2e`), covering browse, seat selection by mouse *and* keyboard, hold → pay → confirmed ticket, and my-bookings.
+
 **Not done:**
 - **k6 benchmarks not run.** `k6/tatkal-spike.js` is written but k6 isn't installed here, so [`docs/benchmarks.md`](docs/benchmarks.md) is still an empty template. This is the main outstanding item.
-- **No visual/browser verification of the UI.** Pages compile, render and return 200, and the API they call is verified working — but nobody has looked at the seat map in a browser, so visual polish, the zoom/pan interaction, and the live WebSocket seat updates are unconfirmed in practice.
-- **Playwright UI tests** from the brief were not written.
+- **Live WebSocket seat updates are not covered by an automated test.** The outbox → Redis → WS path is verified at the backend level, but no test asserts that a second browser sees a seat grey out in real time.
 - **Optional ops agent (milestone 11)** not started.
 - Next.js is pinned to 14.2.35 (latest 14.x). `npm audit` still reports advisories that are only fixed in Next 16, which is a breaking major upgrade (async route params etc.) — deliberately not attempted.
 

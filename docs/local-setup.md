@@ -89,3 +89,15 @@ Tests need the same local Postgres and Redis running. They use a **separate
 your dev data is never touched. The schema is dropped and rebuilt at the
 start of each run; the fixture refuses to run at all unless the target
 database name ends in `_test`.
+
+### Frontend e2e (Playwright)
+```powershell
+cd frontend
+npx playwright install chromium   # first time only
+npm run test:e2e                  # 12 passed (desktop + mobile)
+```
+Unlike the backend tests, these run against the **dev** stack — the API on
+port 8000, the workers, and seeded data all need to be up. The Next.js dev
+server is started automatically. The specs deliberately share that one
+database, so they contend for seats and exercise the real 409 conflict
+recovery path.

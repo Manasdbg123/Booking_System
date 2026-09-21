@@ -169,6 +169,72 @@ migration `0001`.
 
 ---
 
+## 8. Seat map rendered sections as confetti instead of zones
+
+**Found by:** looking at the rendered seat map for the first time.
+
+**Root cause:** the seed assigned sections with `sections[idx % len(sections)]`,
+so Platinum / Gold / Silver / General alternated on *every consecutive
+seat*. The map looked like random coloured noise, and the pricing zones —
+the single most important thing a seat map communicates — were impossible
+to read. Seat coordinates were also a bare `seat_number * 12` grid with no
+aisles and no stage, so a 5,000-seat hall rendered as one undifferentiated
+40 × 125 block.
+
+**Fix:** sections are now contiguous front-to-back bands (`SECTION_ROW_SHARE`,
+premium nearest the stage), seats are laid out in three aisle-separated
+blocks, and rows curve gently around the stage. The renderer draws a stage
+arc, row labels and a per-section price legend on top of that geometry.
+
+**Follow-up found the same way:** with seats-per-row still fixed at 40, a
+5,000-seat hall became 125 rows deep and rendered as a narrow tower. Row
+width is now derived from the seat count (`hall_shape`), which holds every
+hall between roughly 1.4:1 and 1.6:1 — 5,000 seats becomes 92 × 55 instead
+of 40 × 125.
+
+---
+
+## 9. Seats became unselectable by mouse (pointer capture)
+
+**Found by:** the Playwright interaction check —
+`seats marked selected: 0` after three clicks, while keyboard Enter still
+worked.
+
+**Root cause:** introduced by my own change while adding drag-to-pan. The
+pan handler called `setPointerCapture` on the map container, which
+retargets the subsequent `pointerup` to the capturing element. The browser
+then never synthesises a `click` on the seat that was pressed, so mouse
+selection silently died while the keyboard path (a separate `keydown`
+handler) kept working — the kind of regression that's easy to ship if you
+only test with a keyboard or only eyeball a screenshot.
+
+**Fix:** dropped `setPointerCapture` and made the pan handler ignore
+pointerdowns that originate on a seat
+(`(e.target as Element).closest('[role="gridcell"]')`). Guarded by the
+Playwright specs, which assert `aria-selected` counts after both mouse
+clicks and keyboard input.
+
+---
+
+## 10. Seat map was unusable on a phone
+
+**Found by:** a 390 × 844 Playwright screenshot — measured seat size was
+**~4 px**.
+
+**Root cause:** the SVG always fit the whole hall into the frame. That's
+reasonable on a desktop monitor, but on a phone it renders a 5,000-seat
+hall at a few pixels per seat: far below any sane touch target, so the
+"mobile first for seat selection" requirement was not met in practice.
+
+**Fix:** the map now computes an initial zoom that guarantees a minimum
+on-screen seat size (13 px), anchors the opening view on the stage and
+front rows rather than dropping the user in the middle of the hall, and
+supports pinch-to-zoom. A sticky bottom bar carries the running total and
+the hold action, which otherwise sat below a tall map and off-screen.
+Measured seat size after the fix: **14.2 px**.
+
+---
+
 ## Test-harness defects fixed along the way
 
 Not product bugs, but they invalidated test results until fixed:
@@ -178,6 +244,10 @@ Not product bugs, but they invalidated test results until fixed:
 - **False-positive invariant.** The "every SOLD seat has a confirmed booking" check used an outer join + `IS NULL`, which flags a seat that was held → cancelled → re-held → sold, because the cancelled booking's `booking_seats` row legitimately still exists. Hypothesis found this in 4 steps. Rewritten as a `NOT EXISTS` correlated subquery.
 - **Fixtures passed ISO strings for `starts_at`;** asyncpg requires real `datetime` objects.
 - **500 test users meant 500 bcrypt hashes** (~2 min of pure CPU). Test users now share one precomputed hash and are bulk-inserted in a single transaction.
+- **Playwright clicked off-screen seats.** The seat map's SVG carries a CSS transform, so its bounding box extends well beyond the visible area and "is this seat on screen" has to be judged against the clipping frame (`[data-seatmap-frame]`), not the SVG.
+- **`locator("visible=true")` doesn't filter the matched element** — it searches that element's *descendants*. Buttons that exist twice (summary card + mobile bar, one hidden per breakpoint) need `.filter({ visible: true })`.
+- **Indexing seats with `nth()` across awaits is unsafe**: a live seat update or a cleared selection re-renders the map and detaches the element the index referred to. Candidate ids are now gathered in one `evaluate` and clicked by id.
+- **The e2e specs contend for the same seats.** Desktop and mobile projects run in parallel against one shared database and both reach for the first visible seats, so a 409 is the app behaving *correctly*. The helper now recovers the way the UI instructs a real user to — re-select and retry — which doubles as live proof that the conflict path works under genuine contention.
 
 ## Environment issue (not a code bug)
 

@@ -73,28 +73,43 @@ export default function CheckoutPage() {
     );
   }
 
+  const seatCount = booking.seats.length;
+
   return (
-    <div className="mx-auto max-w-lg px-4 py-16">
-      <Card className="p-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="font-display text-xl font-semibold">Checkout</h1>
-          {booking.expires_at && payState === "idle" && <Countdown expiresAt={booking.expires_at} onExpire={() => refetch()} />}
+    <div className="mx-auto flex min-h-[calc(100vh-72px)] max-w-lg items-center px-4 py-10">
+      <Card className="w-full p-8">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display text-xl font-semibold">Checkout</h1>
+            <p className="mt-0.5 text-sm text-white/45">
+              {seatCount} seat{seatCount > 1 ? "s" : ""} reserved for you
+            </p>
+          </div>
+          {booking.expires_at && payState === "idle" && (
+            <div className="flex flex-col items-center gap-1">
+              <Countdown expiresAt={booking.expires_at} onExpire={() => refetch()} />
+              <span className="text-[10px] uppercase tracking-wide text-white/35">held</span>
+            </div>
+          )}
         </div>
 
-        <ul className="mb-4 flex flex-col gap-1 text-sm">
+        <ul className="mb-4 flex flex-col gap-1.5 text-sm">
           {booking.seats.map((s: any) => (
-            <li key={s.show_seat_id} className="flex justify-between">
+            <li key={s.show_seat_id} className="flex justify-between rounded-lg bg-white/[0.04] px-3 py-2">
               <span>
-                {s.row_label}
-                {s.seat_number} · {s.section_name}
+                <span className="font-medium">
+                  {s.row_label}
+                  {s.seat_number}
+                </span>
+                <span className="ml-2 text-white/40">{s.section_name}</span>
               </span>
-              <span className="text-white/60">{formatCurrency(s.price)}</span>
+              <span className="tabular-nums text-white/70">{formatCurrency(s.price)}</span>
             </li>
           ))}
         </ul>
-        <div className="mb-6 flex justify-between border-t border-border pt-4">
+        <div className="mb-6 flex items-center justify-between border-t border-border pt-4">
           <span className="text-white/60">Total</span>
-          <span className="font-display text-xl font-semibold">{formatCurrency(booking.total_amount)}</span>
+          <span className="font-display text-2xl font-semibold tabular-nums">{formatCurrency(booking.total_amount)}</span>
         </div>
 
         {payState === "idle" && (
