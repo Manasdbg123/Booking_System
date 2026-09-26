@@ -28,5 +28,12 @@ class Settings(BaseSettings):
 
     environment: str = "development"
 
+    groq_api_key: str = ""
+    groq_model: str = "openai/gpt-oss-120b"
+    ai_max_tool_iterations: int = 6
+    ai_rate_limit_per_user_per_minute: int = 20
+    ai_history_max_messages: int = 12
+    ai_knowledge_dir: str = "app/knowledge"
+
 
 settings = Settings()

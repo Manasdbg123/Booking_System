@@ -174,6 +174,38 @@ class QueueStatusOut(BaseModel):
     estimated_wait_seconds: int
 
 
+# ---- ai assistant ----
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+    session_id: uuid.UUID | None = None
+
+
+class ToolCallOut(BaseModel):
+    name: str
+    input: dict
+    outcome: str
+    result: dict = {}
+
+
+class ChatResponse(BaseModel):
+    session_id: uuid.UUID
+    reply: str
+    tool_calls: list[ToolCallOut]
+
+
+class ChatSessionOut(BaseModel):
+    id: uuid.UUID
+    title: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ChatMessageOut(BaseModel):
+    role: str
+    content: str
+    created_at: datetime
+
+
 # ---- admin ----
 class AdminMetricsOut(BaseModel):
     active_holds: int

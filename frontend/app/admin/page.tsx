@@ -87,6 +87,8 @@ export default function AdminPage() {
     enabled: role === "ADMIN",
   });
   const { data: auditLog } = useQuery({ queryKey: ["admin-audit"], queryFn: api.adminAuditLog, refetchInterval: 8000, enabled: role === "ADMIN" });
+  const { data: analytics } = useQuery({ queryKey: ["admin-analytics"], queryFn: api.adminAnalytics, refetchInterval: 8000, enabled: role === "ADMIN" });
+  const { data: aiActivity } = useQuery({ queryKey: ["admin-ai-activity"], queryFn: api.adminAiActivity, refetchInterval: 8000, enabled: role === "ADMIN" });
   const { data: recentBookings } = useQuery({
     queryKey: ["admin-recent-bookings"],
     queryFn: api.adminRecentBookings,
@@ -119,6 +121,13 @@ export default function AdminPage() {
           <MetricCard label="Outbox backlog" value={metrics?.outbox_backlog} />
         </div>
       )}
+
+      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <MetricCard label="Total users" value={analytics?.total_users} />
+        <MetricCard label="Revenue" value={analytics ? Number(analytics.revenue) : undefined} format={formatCurrency} />
+        <MetricCard label="Cancellation rate" value={analytics?.cancellation_rate_pct} format={(v) => `${v}%`} />
+        <MetricCard label="Failed payments" value={analytics?.failed_payments} />
+      </div>
 
       {/* Per-show seat heatmap */}
       <div className="mb-4 mt-12 flex flex-wrap items-center justify-between gap-3">
@@ -201,15 +210,49 @@ export default function AdminPage() {
           </tbody>
         </table>
       </Card>
+      <h2 className="mb-4 mt-12 font-display text-lg font-semibold">AI activity log</h2>
+      <p className="mb-3 text-sm text-white/50">Every irreversible action (and every failed tool call) the AI booking assistant has taken, across all users.</p>
+      <Card className="overflow-x-auto p-0">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-border text-white/50">
+            <tr>
+              <th className="px-4 py-3">User</th>
+              <th className="px-4 py-3">Tool</th>
+              <th className="px-4 py-3">Outcome</th>
+              <th className="px-4 py-3">When</th>
+            </tr>
+          </thead>
+          <tbody>
+            {aiActivity?.length ? (
+              aiActivity.map((a: any) => (
+                <tr key={a.id} className="border-b border-border/50">
+                  <td className="px-4 py-3 font-mono text-xs">{a.actor.replace("ai_agent:", "").slice(0, 8)}</td>
+                  <td className="px-4 py-3">{a.action.replace("tool_call:", "")}</td>
+                  <td className="px-4 py-3">
+                    <Badge tone={a.outcome === "ok" ? "success" : "danger"}>{a.outcome}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-white/50">{formatDate(a.created_at)}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-white/40">
+                  No AI-initiated actions yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </Card>
     </div>
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: number | undefined }) {
+function MetricCard({ label, value, format }: { label: string; value: number | undefined; format?: (v: number) => string }) {
   return (
     <Card className="p-5">
       <p className="text-xs uppercase tracking-wide text-white/40">{label}</p>
-      <p className="mt-2 font-display text-3xl font-semibold">{value ?? "–"}</p>
+      <p className="mt-2 font-display text-3xl font-semibold">{value === undefined ? "–" : format ? format(value) : value}</p>
     </Card>
   );
 }

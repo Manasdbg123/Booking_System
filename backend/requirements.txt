@@ -17,6 +17,7 @@ prometheus-client==0.26.0
 structlog==26.1.0
 websockets==17.1
 httpx==0.28.1
+groq==0.37.1
 
 # testing
 pytest==9.1.1

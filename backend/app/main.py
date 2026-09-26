@@ -11,7 +11,7 @@ from app.core.security import hash_password
 from app.config import settings
 from app.db import SessionLocal
 from app.models import User, UserRole
-from app.routers import admin, auth, bookings, catalog, health, holds, payments, queue, realtime, waitlist
+from app.routers import admin, ai, auth, bookings, catalog, health, holds, payments, queue, realtime, waitlist
 
 configure_logging()
 logger = get_logger("seatrush")
@@ -43,7 +43,7 @@ async def metrics():
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-for router in (auth.router, catalog.router, holds.router, bookings.router, payments.router, waitlist.router, queue.router, admin.router, realtime.router, health.router):
+for router in (auth.router, catalog.router, holds.router, bookings.router, payments.router, waitlist.router, queue.router, admin.router, ai.router, realtime.router, health.router):
     app.include_router(router)
 
 

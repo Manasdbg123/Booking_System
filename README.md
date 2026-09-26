@@ -71,7 +71,30 @@ Default admin login (bootstrapped on first API startup): see
 - **Optional ops agent (milestone 11)** not started.
 - Next.js is pinned to 14.2.35 (latest 14.x). `npm audit` still reports advisories that are only fixed in Next 16, which is a breaking major upgrade (async route params etc.) — deliberately not attempted.
 
-## Optional ops agent
-Not built — the brief says to do it last, only if everything else is solid.
-Milestones 1–10 are now verified except the k6 benchmarks, so this is the
-reasonable next thing to pick up after those numbers exist.
+## AI booking assistant
+Built (milestone 11): a tool-calling AI agent (`/ai-assistant`, backed by
+`/api/ai/chat`) that searches shows, checks live availability/pricing,
+answers policy questions via RAG over `backend/app/knowledge/*.md`, and can
+place holds, pay, or cancel bookings for the authenticated user — always
+through the same service functions the REST API uses, never raw SQL, and
+only after the user confirms in conversation. Every irreversible tool call
+is audit-logged and visible in the admin dashboard's "AI activity log".
+See [`docs/ai-agent.md`](docs/ai-agent.md) for the full architecture,
+guardrails, and RAG-vs-vector-DB trade-off writeup.
+
+Requires `GROQ_API_KEY` set (see `.env.example`); without it the endpoint
+returns a clean 503 rather than failing silently. Runs against Groq's
+OpenAI-compatible chat-completions API with `openai/gpt-oss-120b` (tool
+calling verified live against that model — plain `llama-3.x` model ids are
+not available on every Groq account/region, so the default is picked for
+broad availability).
+
+**Verified live**, not just unit-tested: with Postgres + Redis running and
+a real `GROQ_API_KEY`, the full backend test suite (43 tests, including
+`backend/tests/unit/test_ai_agent.py` with the Groq client mocked) passes;
+the app was also started as a real `uvicorn` process and hit with real HTTP
+requests confirming `/api/ai/chat` returns a clean 503 with no key, and
+`/api/admin/analytics` / `/api/admin/ai-activity` return real data. A live
+end-to-end chat turn against the real Groq API still needs to be exercised
+through the UI once (k6 benchmarks remain the one outstanding item, as
+before).

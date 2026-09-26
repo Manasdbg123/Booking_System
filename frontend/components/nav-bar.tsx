@@ -21,6 +21,9 @@ export function NavBar() {
               <Link href="/my-bookings" className="rounded-lg px-3 py-2 text-white/70 transition hover:bg-white/5 hover:text-white">
                 My Bookings
               </Link>
+              <Link href="/ai-assistant" className="rounded-lg px-3 py-2 text-white/70 transition hover:bg-white/5 hover:text-white">
+                AI Assistant
+              </Link>
               {role === "ADMIN" && (
                 <Link href="/admin" className="rounded-lg px-3 py-2 text-white/70 transition hover:bg-white/5 hover:text-white">
                   Admin

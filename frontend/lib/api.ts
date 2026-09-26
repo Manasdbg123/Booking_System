@@ -81,4 +81,10 @@ export const api = {
   adminHeatmap: (showId: string) => apiFetch<any>(`/api/admin/shows/${showId}/heatmap`),
   adminAuditLog: () => apiFetch<any[]>("/api/admin/audit-log"),
   adminRecentBookings: () => apiFetch<any[]>("/api/admin/bookings/recent"),
+  adminAnalytics: () => apiFetch<any>("/api/admin/analytics"),
+  adminAiActivity: () => apiFetch<any[]>("/api/admin/ai-activity"),
+  aiChat: (message: string, sessionId?: string) =>
+    apiFetch<any>("/api/ai/chat", { method: "POST", body: JSON.stringify({ message, session_id: sessionId ?? null }) }),
+  aiSessions: () => apiFetch<any[]>("/api/ai/sessions"),
+  aiSessionMessages: (sessionId: string) => apiFetch<any[]>(`/api/ai/sessions/${sessionId}/messages`),
 };

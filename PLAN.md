@@ -58,7 +58,7 @@ Indexes: `show_seats(show_id, status)`, `bookings(idempotency_key)`, `waitlist_e
 8. Frontend checkout/tickets/my-bookings/waiting-room/admin dashboard.
 9. Seed data + docs (design.md, failure-modes.md, benchmarks.md placeholder, Mermaid architecture diagram, README).
 10. Testing pass (unit, concurrency, property-based, failure-injection) + fix bugs found, log them in docs/bugs-found.md. k6 script written but only run if you get Postgres/Redis running locally — I'll hand you the exact command.
-11. Optional ops agent, only if 1–10 land clean.
+11. AI booking assistant (tool-calling agent + RAG + admin AI-activity log) — done. See `docs/ai-agent.md`.
 
 ## Risks / honest caveats
 - I cannot execute anything here (no Postgres/Redis/Docker in this environment), so milestones 1–9 are built untested-by-me; correctness bugs are likely and will surface in milestone 10, which you'll need to actually run locally (I'll give exact commands) since I can't run Postgres myself.

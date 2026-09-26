@@ -286,3 +286,40 @@ class AuditLog(Base):
     outcome: Mapped[str] = mapped_column(String(100), default="")
     extra: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChatRole(str, enum.Enum):
+    USER = "USER"
+    ASSISTANT = "ASSISTANT"
+    TOOL = "TOOL"
+
+
+class ChatSession(Base):
+    """One AI-assistant conversation. Scoped to a single user so a session
+    can never be replayed by / leaked to another user (see deps in
+    app/routers/ai.py, which always derives user_id from the JWT, never from
+    the request body)."""
+
+    __tablename__ = "chat_sessions"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    title: Mapped[str] = mapped_column(String(255), default="New conversation")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    messages: Mapped[list["ChatMessage"]] = relationship(back_populates="session", order_by="ChatMessage.created_at")
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chat_sessions.id"), index=True)
+    role: Mapped[ChatRole] = mapped_column(Enum(ChatRole, name="chat_role"))
+    content: Mapped[str] = mapped_column(String(8000), default="")
+    # Raw tool_calls / tool-result objects for this turn (OpenAI-style
+    # content), kept for debugging only — never replayed back to the model
+    # across turns (see agent_service._load_history).
+    tool_blocks: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    session: Mapped[ChatSession] = relationship(back_populates="messages")
